@@ -23,6 +23,9 @@ SQUARES_C = $(SQUARES_OBJ:.o=.c)
 squares: squares.o
 	 gcc $(CLFAGS) $(SQUARES_OBJ) -o squares
 
+squares.o: squares.c squares.h
+	gcc $(CFLAGS) -c sqaures.c
+
 clean:
 	 rm *.o
 	 rm core.*
