@@ -1,34 +1,30 @@
-#################################################
-# Authour	:	Ben Haubrich		#
-# File		:	makefile		#
-# Synopsis	:	makefile for square.c	#
-#################################################
+#########################################################
+# Author	:	Ben Haubrich			#
+# Files		:	makefile			#
+# Synopsis	:	Windows makefile for square.c	#
+#########################################################
 
+CC = cl.exe
+CFLAGS = /W4
+CFLAGS_DEBUG = /Oi /Od /Zi
 
-.PHONY:	clean
+.PHONY: clean debug
 
-#Variable declarations
+square: square.obj
+	$(CC) $(CFLAGS) square.obj
 
-# Flags for the C compiler
-CFLAGS = -Wall -Wextra -std=c89
+square.obj:	square.exe
+	$(CC) $(CFLAGS) /c square.c
 
-# Object files
-SQUARES_OBJ = squares.o
-
-# C source files for complete compiling
-SQUARES_C = $(SQUARES_OBJ:.o=.c)
-
-#Rules
-
-squares: squares.o
-	 gcc $(CLFAGS) $(SQUARES_OBJ) -o squares
+# debug compilations need to compile everything, so we won't worry about
+# dependancies
+# The following commands are usefull once the debuggers starts up:
+# <0:000> .lines
+# <0:000> l+t
+# <0:000> l+s
+# <0:000> bp square!main
+debug: square.c 
+	$(CC) $(CFLAGS) $(CFLAGS_DEBUG) square.c
 
 clean:
-	 rm *.o
-	 rm core.*
-
-
-
-
-
-
+	del square.ilk square.pdb vc140.pdb
