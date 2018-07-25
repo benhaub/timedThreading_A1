@@ -2,7 +2,6 @@
  * Authour	:	Ben Haubrich
  * File		:	square.c
  * Synopsis	:	prints data about a multithreaded operation that sqares
- *			N integers
  */
 
 /*
@@ -13,12 +12,22 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define MAX_THREADS 6
+#define MAX_THREADS 10
 
 /*
 * boolean that allows threads to continue execution
 */
 bool keepRunning = true;
+/*
+* Array to store function call counts by each thread. Elements are accessed by
+* thread ID's that have been divided by 2 to save space. I have never seen a
+* a thread Id much over 20,000 so I went with 25000 divided by two to be safe.
+*/
+int squareCount[12500];
+/*
+* We also need to save the indexes to the array that were used
+*/
+DWORD squareCountIndex[MAX_THREADS];
 
 /*
  * square is a recursive algorithm that calculates the sum of n squares. It's
@@ -34,57 +43,34 @@ bool keepRunning = true;
  */
 int CALLBACK square(int n) {
 
-	printf("square was called by %u.\n", GetCurrentThreadId());
+	/* Actual count is off by one because of the initial call*/
+	squareCount[GetCurrentThreadId() / 2] += 1;
 
-	/*
-	* Count the number of calls. Start at 1 for the initial call
-	*/
-	int numCalls = 1;
+	printf("square was called by %u\n", GetCurrentThreadId());
 
+	/* Save the index of the calling thread so we can access counts later*/
+	int i;
+	for(i = 0; i < MAX_THREADS; i++) {
+
+		/* If we haven't placed a value in i'th spot, put one there*/
+		if(squareCountIndex[i] == 0) {
+
+			squareCountIndex[i] = (GetCurrentThreadId() / 2);
+			break;
+		}
+	}
 	if(false == keepRunning) {
-
-		/*
-		* Store the number of calls in thread local storage
-		*/
-		DWORD tls_index = TlsAlloc();
-
-		if(tls_index == TLS_OUT_OF_INDEXES) {
-
-			fprintf(stderr, "TlsAlloc falied");
-		}
-		
-		if(0 == TlsSetValue(tls_index, &numCalls)) {
-
-			fprintf(stderr, "could not set value in thread local storage");
-		}
-		printf("Thread %d called square() %d times\n", GetCurrentThreadId() ,TlsGetValue(tls_index));
 
 		LPDWORD exitCode = NULL;
 		GetExitCodeThread(GetCurrentThread(), exitCode);
 		TerminateThread(GetCurrentThread(), (DWORD)exitCode);
+	
 		return(n-1 + n + n - 1);
 	}
 
 	if(0 == n) {
-
-		/*
-		* Store the number of calls in thread local storage
-		*/
-		DWORD tls_index = TlsAlloc();
-
-		if(tls_index == TLS_OUT_OF_INDEXES) {
-
-			fprintf(stderr, "TlsAlloc falied");
-		}
 		
-		if(0 == TlsSetValue(tls_index, &numCalls)) {
-
-			fprintf(stderr, "could not set value in thread local storage");
-		}	
-		
-		printf("Thread %d called square() %d times\n", GetCurrentThreadId() ,TlsGetValue(tls_index));
-
-	return 0;
+		return 0;
 	}
 	else if(n < 0) {
 
@@ -93,16 +79,20 @@ int CALLBACK square(int n) {
 	}
 	else {
 	
-		numCalls++;
 		return(square(n-1) + n + n - 1);
 	}
 }
 
 int main(int argc, char *argv[]) {
 
+	{
+	int i;
+	for(i = 0; i < 12500; i++) {
 
-	printf("parent thread ID is %u.\n", GetCurrentThreadId());
-
+		squareCount[i] = 0;
+	}
+	}
+	
 	/*
 	* time variables to keep track of elapsed time of threads and to also
 	* keep track of the deadline. GetSystemTime() can only be given a
@@ -181,13 +171,13 @@ int main(int argc, char *argv[]) {
 
 	for(i = 0; i < numThreads; i++) {
 
-		/*
-		* Start the threads and save the time they started
-		*/
-		ResumeThread(threadArray[i]);
-		GetSystemTime(&time);
-		threadTimesSec[i] = time.wSecond;
-		threadTimesMsec[i] = time.wMilliseconds;
+	/*
+	* Start the threads and save the time they started
+	*/
+	ResumeThread(threadArray[i]);
+	GetSystemTime(&time);
+	threadTimesSec[i] = time.wSecond;
+	threadTimesMsec[i] = time.wMilliseconds;
 	}
 
 	/*
@@ -214,9 +204,13 @@ int main(int argc, char *argv[]) {
 	* Print execution times for each thread and the number of calls to
 	* square that each thread made
 	*/
+	int index;
 	for(i = 0; i < numThreads; i++) {
 		
-		printf("Time for thread %u: %u seconds and %d milliseconds\n", i, (time.wSecond - threadTimesSec[i]), (time.wMilliseconds - threadTimesMsec[i]));
+		index = squareCountIndex[i]; 
+		printf("Time for thread %u: %u seconds and %d milliseconds\nCalls for thread %u: %d.\n", i, (time.wSecond - threadTimesSec[i]), (time.wMilliseconds - threadTimesMsec[i]), i, squareCount[index]);
+		/*printf("Calls for thread %u: %d.\n", i, squareCount[index]);*/
+	
 	}
 
 return EXIT_SUCCESS;
